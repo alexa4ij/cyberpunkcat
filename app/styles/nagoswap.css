@@ -1,0 +1,249 @@
+/* styles/nagoswap.css */
+
+.swap-container {
+  min-height: 100vh;
+  background: radial-gradient(circle at 50% 0%, #0d1b2a, #1b263b);
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+}
+
+.swap-content {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 3rem 1rem;
+}
+
+.swap-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.swap-title {
+  font-size: 2rem;
+  font-weight: bold;
+  background: linear-gradient(to right, #5eead4, #6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.swap-subtitle {
+  color: #94a3b8;
+}
+
+.swap-card {
+  background-color: #1e293b;
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid #334155;
+}
+
+.swap-topbar {
+  height: 4px;
+  background: linear-gradient(to right, #6366f1, #8b5cf6);
+}
+
+.swap-inner {
+  padding: 1.5rem;
+}
+
+.connect-button {
+  background-color: #475569 !important;
+  color: white !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: 0.5rem !important;
+}
+
+.swap-error {
+  background-color: #dc2626;
+  color: white;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.token-section {
+  background-color: #0f172a;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  margin-bottom: 1rem;
+  border: 1px solid #334155;
+}
+
+.token-label {
+  display: flex;
+  justify-content: space-between;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.max-button {
+  background-color: #334155;
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: #fff;
+}
+
+.token-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.token-input {
+  flex: 1;
+  background: transparent;
+  font-size: 1.5rem;
+  color: white;
+  border: none;
+  outline: none;
+}
+
+.token-select-button {
+  background-color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  color: white;
+}
+
+.token-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.token-balance {
+  text-align: right;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 0.25rem;
+}
+
+.flip-button-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 0.5rem 0;
+}
+
+.flip-button {
+  background-color: #334155;
+  padding: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid #475569;
+}
+
+.swap-info-box {
+  background-color: #0f172a;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  margin-bottom: 1rem;
+  border: 1px solid #334155;
+}
+
+.swap-info-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: #e2e8f0;
+  padding: 0.25rem 0;
+}
+
+.slippage-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.slippage-button {
+  background-color: #334155;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: 0.25rem;
+  color: white;
+}
+
+.slippage-button.active {
+  background-color: #6366f1;
+}
+
+.swap-button {
+  width: 100%;
+  padding: 0.75rem;
+  font-weight: bold;
+  font-size: 1rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(to right, #6366f1, #8b5cf6);
+  color: white;
+}
+
+.swap-button.disabled {
+  background-color: #475569;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+}
+
+.modal-content {
+  background-color: #1e293b;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  max-height: 80vh;
+  overflow-y: auto;
+  width: 90%;
+  max-width: 400px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  margin-bottom: 1rem;
+}
+
+.modal-close {
+  font-size: 1.5rem;
+  color: #94a3b8;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.token-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background-color: #0f172a;
+  color: white;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 0.5rem;
+}
+
+.token-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.swap-footer {
+  text-align: center;
+  margin-top: 2rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}

@@ -9,6 +9,7 @@ import {
   formatSUI,
 } from '@suiet/wallet-kit';
 import { Transaction } from '@mysten/sui/transactions';
+import type { ChangeEvent } from 'react';
 
 // Define types
 type Token = {
@@ -76,30 +77,27 @@ export default function TurboSwap() {
   const wallet = useWallet();
   const suiClient = useSuiClient();
   const { balance } = useAccountBalance();
-  
-  // State management
-  const [fromAmount, setFromAmount] = useState('');
-  const [toAmount, setToAmount] = useState('');
-  const [isSwapping, setIsSwapping] = useState(false);
-  const [error, setError] = useState('');
-  const [slippage, setSlippage] = useState(0.5);
+
+  const [fromAmount, setFromAmount] = useState<string>('');
+  const [toAmount, setToAmount] = useState<string>('');
+  const [isSwapping, setIsSwapping] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+  const [slippage, setSlippage] = useState<number>(0.5);
   const [fromToken, setFromToken] = useState<Token>(TOKENS.SUI);
   const [toToken, setToToken] = useState<Token>(TOKENS.MYCOIN);
   const [tokenBalances, setTokenBalances] = useState<TokenBalances>({});
-  const [showTokenList, setShowTokenList] = useState<'from'|'to'|null>(null);
+  const [showTokenList, setShowTokenList] = useState<'from' | 'to' | null>(null);
   const [exchangeRates, setExchangeRates] = useState<ExchangeRates>({
     'SUI-USDT': 1.2, 'SUI-USDC': 1.19, 'SUI-CETUS': 150, 'SUI-WAL': 80, 'SUI-MYCOIN': 0.8,
     'USDT-USDC': 0.99, 'USDT-CETUS': 125, 'USDT-WAL': 66.67, 'USDT-MYCOIN': 0.67,
   });
 
-  // Calculate exchange rate
   const getExchangeRate = (): number => {
     const pair = `${fromToken.symbol}-${toToken.symbol}`;
     const reversePair = `${toToken.symbol}-${fromToken.symbol}`;
-    return exchangeRates[pair] || (exchangeRates[reversePair] ? 1/exchangeRates[reversePair] : 0.8);
+    return exchangeRates[pair] || (exchangeRates[reversePair] ? 1 / exchangeRates[reversePair] : 0.8);
   };
 
-  // Effects
   useEffect(() => {
     if (fromAmount && !isNaN(Number(fromAmount))) {
       setToAmount((Number(fromAmount) * getExchangeRate()).toFixed(toToken.decimals > 6 ? 6 : toToken.decimals));
@@ -122,7 +120,7 @@ export default function TurboSwap() {
   useEffect(() => {
     const interval = setInterval(() => {
       setExchangeRates(prev => {
-        const newRates = {...prev};
+        const newRates = { ...prev };
         Object.keys(newRates).forEach(pair => {
           newRates[pair] = newRates[pair] * (0.999 + Math.random() * 0.002);
         });
@@ -132,15 +130,8 @@ export default function TurboSwap() {
     return () => clearInterval(interval);
   }, []);
 
-  // Handler functions
-  const handleFromAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFromAmountChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFromAmount(e.target.value);
-  };
-
-  const flipTokens = () => {
-    setFromToken(toToken);
-    setToToken(fromToken);
-    setFromAmount(toAmount);
   };
 
   const handleMaxClick = () => {
@@ -149,10 +140,16 @@ export default function TurboSwap() {
     }
   };
 
+  const flipTokens = () => {
+    setFromToken(toToken);
+    setToToken(fromToken);
+    setFromAmount(toAmount);
+  };
+
   const selectToken = (tokenKey: string) => {
     const token = TOKENS[tokenKey];
     if (!token) return;
-    
+
     if (showTokenList === 'from') {
       setFromToken(token);
     } else if (showTokenList === 'to') {
@@ -173,8 +170,8 @@ export default function TurboSwap() {
       tx.moveCall({
         target: `${PACKAGE_ID}::${MODULE}::${FUNC}`,
         arguments: [
-          tx.pure.u64(Number(fromAmount) * 10**fromToken.decimals),
-          tx.pure.u64(Number(fromAmount) * getExchangeRate() * (1 - slippage/100) * 10**toToken.decimals),
+          tx.pure.u64(Number(fromAmount) * 10 ** fromToken.decimals),
+          tx.pure.u64(Number(fromAmount) * getExchangeRate() * (1 - slippage / 100) * 10 ** toToken.decimals),
         ],
         typeArguments: [fromToken.type, toToken.type],
       });
@@ -194,220 +191,178 @@ export default function TurboSwap() {
     }
   };
 
-  // Current exchange rate
-  const currentRate = getExchangeRate();
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
-      <div className="container mx-auto px-4 py-12">
-        <div className="max-w-md mx-auto">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
-              Turbo Swap
-            </h1>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Tukar token dengan mudah di Sui Network
-            </p>
-          </div>
+    <div className="min-h-screen bg-gray-900 text-white p-4">
+      <div className="max-w-md mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
+            TurboSwap
+          </h1>
+          <ConnectButton className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg" />
+        </div>
 
-          {/* Swap Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700 transition-all duration-300">
-            {/* Gradient top bar */}
-            <div className={`h-1 ${fromToken.color || 'bg-gradient-to-r from-blue-500 to-purple-500'}`}></div>
-            
-            <div className="p-6">
-              {/* Wallet Connection */}
-              <div className="flex justify-end mb-6">
-                <ConnectButton className="!bg-gray-100 !text-gray-800 dark:!bg-gray-700 dark:!text-white !px-4 !py-2 !rounded-lg hover:!bg-gray-200 dark:hover:!bg-gray-600 transition-colors" />
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-200 rounded-lg text-sm">
-                  {error}
-                </div>
-              )}
-
-              {/* From Token */}
-              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 mb-3 border border-gray-200 dark:border-gray-600">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Dari</span>
-                  <button 
-                    onClick={handleMaxClick}
-                    className="text-xs bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 px-2 py-1 rounded-md transition-colors"
-                  >
-                    Max
-                  </button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <input
-                    type="number"
-                    value={fromAmount}
-                    onChange={handleFromAmountChange}
-                    placeholder="0.0"
-                    className="w-full bg-transparent text-2xl outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                  />
-                  <button 
-                    onClick={() => setShowTokenList('from')}
-                    className="flex items-center space-x-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg px-3 py-2 ml-2 transition-colors"
-                  >
-                    <img src={fromToken.icon} alt={fromToken.symbol} className="w-6 h-6 rounded-full" />
-                    <span className="font-medium">{fromToken.symbol}</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="text-right mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Saldo: {wallet.connected ? (tokenBalances[fromToken.symbol]?.toFixed(4) || '0.00') : '--'}
-
-                </div>
-              </div>
-
-              {/* Flip Button */}
-              <div className="flex justify-center my-1">
+        <div className="bg-gray-800 rounded-xl p-6 shadow-lg">
+          {/* From Token */}
+          <div className="mb-4">
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-gray-400">From</label>
+              <div className="text-sm text-gray-400">
+                Balance: {tokenBalances[fromToken.symbol]?.toFixed(4) || '0.00'}
                 <button 
-                  onClick={flipTokens}
-                  className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 p-2 rounded-full border border-gray-200 dark:border-gray-600 transition-colors"
+                  onClick={handleMaxClick}
+                  className="ml-2 text-purple-400 hover:text-purple-300"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
+                  Max
                 </button>
               </div>
-
-              {/* To Token */}
-              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 mb-6 border border-gray-200 dark:border-gray-600">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Ke</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <input
-                    type="text"
-                    readOnly
-                    value={toAmount}
-                    placeholder="0.0"
-                    className="w-full bg-transparent text-2xl outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                  />
-                  <button 
-                    onClick={() => setShowTokenList('to')}
-                    className="flex items-center space-x-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg px-3 py-2 ml-2 transition-colors"
-                  >
-                    <img src={toToken.icon} alt={toToken.symbol} className="w-6 h-6 rounded-full" />
-                    <span className="font-medium">{toToken.symbol}</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="text-right mt-1 text-xs text-gray-500 dark:text-gray-400">
-               Saldo: {wallet.connected ? (Number(tokenBalances[toToken.symbol] ?? 0).toFixed(4)) : '--'}
-                </div>
-              </div>
-
-              {/* Swap Info */}
-              <div className="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-3 mb-6 text-sm border border-gray-200 dark:border-gray-600">
-                <div className="flex justify-between py-2">
-                  <span className="text-gray-500 dark:text-gray-400">Rate</span>
-                  <span>1 {fromToken.symbol} = {currentRate.toFixed(6)} {toToken.symbol}</span>
-                </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-gray-500 dark:text-gray-400">Slippage</span>
-                  <div className="flex items-center space-x-2">
-                    {[0.1, 0.5, 1].map(value => (
-                      <button 
-                        key={value}
-                        onClick={() => setSlippage(value)}
-                        className={`px-2 py-1 rounded text-xs ${slippage === value ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}
-                      >
-                        {value}%
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-gray-500 dark:text-gray-400">Estimasi Harga</span>
-                  <span>~ {toAmount || '0.00'} {toToken.symbol}</span>
-                </div>
-              </div>
-
-              {/* Swap Button */}
+            </div>
+            <div className="flex items-center bg-gray-700 rounded-lg p-3">
+              <input
+                type="number"
+                value={fromAmount}
+                onChange={handleFromAmountChange}
+                placeholder="0.0"
+                className="bg-transparent w-full text-xl outline-none"
+              />
               <button
-                onClick={handleSwap}
-                disabled={isSwapping || !fromAmount}
-                className={`w-full py-3 rounded-xl font-bold text-lg transition-all ${
-                  isSwapping 
-                    ? 'bg-blue-400 dark:bg-blue-600 text-white' 
-                    : !fromAmount 
-                      ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed' 
-                      : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-md'
-                }`}
+                onClick={() => setShowTokenList('from')}
+                className="flex items-center bg-gray-600 hover:bg-gray-500 rounded-full px-3 py-1"
               >
-                {isSwapping ? 'Processing...' : 'Swap Sekarang'}
+                <img src={fromToken.icon} alt={fromToken.symbol} className="w-6 h-6 mr-2" />
+                <span>{fromToken.symbol}</span>
+                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               </button>
             </div>
           </div>
 
-          {/* Token Selection Modal */}
-          {showTokenList && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-md max-h-[80vh] overflow-y-auto shadow-xl border border-gray-200 dark:border-gray-700">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800">
-                  <h3 className="font-bold">Pilih Token</h3>
-                  <button 
-                    onClick={() => setShowTokenList(null)} 
-                    className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="p-4">
-                  <div className="relative mb-4">
-                    <input
-                      type="text"
-                      placeholder="Cari token..."
-                      className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2 pl-10 text-gray-900 dark:text-white"
-                    />
-                    <svg className="absolute left-3 top-3 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
-                  <div className="space-y-2">
-                    {Object.entries(TOKENS).map(([key, token]) => (
-                      <button
-                        key={key}
-                        onClick={() => selectToken(key)}
-                        className={`flex items-center w-full p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                          (showTokenList === 'from' && fromToken.symbol === token.symbol) ||
-                          (showTokenList === 'to' && toToken.symbol === token.symbol)
-                            ? 'bg-gray-100 dark:bg-gray-700'
-                            : ''
-                        }`}
-                      >
-                        <img src={token.icon} alt={token.symbol} className="w-8 h-8 mr-3 rounded-full" />
-                        <div className="text-left">
-                          <div className="font-medium">{token.symbol}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            Saldo: {wallet.connected ? (tokenBalances[token.symbol]?.toFixed(4) || '0.00') : '--'}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+          {/* Flip Button */}
+          <div className="flex justify-center my-2">
+            <button
+              onClick={flipTokens}
+              className="bg-gray-700 hover:bg-gray-600 p-2 rounded-full"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+              </svg>
+            </button>
+          </div>
+
+          {/* To Token */}
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-gray-400">To</label>
+              <div className="text-sm text-gray-400">
+                Balance: {tokenBalances[toToken.symbol]?.toFixed(4) || '0.00'}
               </div>
             </div>
-          )}
-
-          {/* Footer */}
-          <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
-            © 2023 Cyberpunk Marketplace. All rights reserved.
+            <div className="flex items-center bg-gray-700 rounded-lg p-3">
+              <input
+                type="text"
+                value={toAmount}
+                readOnly
+                placeholder="0.0"
+                className="bg-transparent w-full text-xl outline-none"
+              />
+              <button
+                onClick={() => setShowTokenList('to')}
+                className="flex items-center bg-gray-600 hover:bg-gray-500 rounded-full px-3 py-1"
+              >
+                <img src={toToken.icon} alt={toToken.symbol} className="w-6 h-6 mr-2" />
+                <span>{toToken.symbol}</span>
+                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
           </div>
+
+          {/* Rate Info */}
+          <div className="mb-6 text-center text-sm text-gray-400">
+            1 {fromToken.symbol} = {getExchangeRate().toFixed(6)} {toToken.symbol}
+          </div>
+
+          {/* Slippage Settings */}
+          <div className="mb-6">
+            <label className="block text-gray-400 mb-2">Slippage Tolerance</label>
+            <div className="flex space-x-2">
+              {[0.1, 0.5, 1.0].map((value) => (
+                <button
+                  key={value}
+                  onClick={() => setSlippage(value)}
+                  className={`px-3 py-1 rounded-lg ${slippage === value ? 'bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'}`}
+                >
+                  {value}%
+                </button>
+              ))}
+              <div className="relative flex-1">
+                <input
+                  type="number"
+                  value={slippage}
+                  onChange={(e) => setSlippage(Number(e.target.value))}
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  className="w-full bg-gray-700 rounded-lg px-3 py-1 text-right pr-7"
+                />
+                <span className="absolute right-3 top-1/2 transform -translate-y-1/2">%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Swap Button */}
+          <button
+            onClick={handleSwap}
+            disabled={isSwapping || !fromAmount || !toAmount}
+            className={`w-full py-3 rounded-xl font-bold ${!wallet.connected ? 'bg-gray-600' : isSwapping ? 'bg-purple-700' : 'bg-purple-600 hover:bg-purple-500'} transition-colors`}
+          >
+            {!wallet.connected ? 'Connect Wallet' : isSwapping ? 'Swapping...' : 'Swap'}
+          </button>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mt-4 p-3 bg-red-900/50 text-red-300 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Token Selection Modal */}
+      {showTokenList && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-xl w-full max-w-md max-h-[70vh] overflow-hidden mx-4">
+            <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+              <h3 className="text-lg font-medium">Select Token</h3>
+              <button onClick={() => setShowTokenList(null)} className="text-gray-400 hover:text-white">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="overflow-y-auto max-h-[60vh]">
+              {Object.entries(TOKENS).map(([key, token]) => (
+                <button
+                  key={key}
+                  onClick={() => selectToken(key)}
+                  className="flex items-center w-full p-4 hover:bg-gray-700 transition-colors"
+                >
+                  <div className={`w-8 h-8 rounded-full ${token.color || 'bg-gray-600'} flex items-center justify-center mr-3`}>
+                    <img src={token.icon} alt={token.symbol} className="w-6 h-6" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-medium">{token.symbol}</div>
+                    <div className="text-sm text-gray-400">
+                      Balance: {tokenBalances[token.symbol]?.toFixed(4) || '0.00'}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
