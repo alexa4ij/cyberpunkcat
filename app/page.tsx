@@ -87,60 +87,27 @@ export default function NFTMarketplace() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 flex flex-col items-center p-6">
-     <Link 
-  href="/swap"
-  className="
-    relative
-    inline-flex
-    items-center
-    justify-center
-    px-100 py-1000
-    rounded-full
-    bg-gradient-to-r from-blue-500 to-blue-700
-    hover:from-blue-600 hover:to-blue-800
-    text-white
-    font-semibold
-    shadow-md
-    hover:shadow-xl
-    transition-all
-    duration-3000
-    group
-    overflow-hidden
-    text-base
-  "
->
-  <span className="relative z-100">🔁 Swap</span>
-  <span className="
-    absolute
-    inset-0
-    bg-gradient-to-r from-blue-800 to-blue-500
-    opacity-0
-    group-hover:opacity-100
-    transition-opacity
-    duration-300
-  "></span>
-  <span className="
-    absolute
-    -inset-1
-    bg-white/20
-    rounded-full
-    blur-md
-    group-hover:blur-lg
-    transition-all
-    duration-500
-  "></span>
-</Link>
+    {/* Tombol Swap & Connect Wallet */}
+<div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-6">
+  <Link 
+    href="/swap"
+    className="w-full sm:w-auto text-center px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-md hover:shadow-lg transition-all"
+  >
+    🔁 Swap
+  </Link>
 
-      <ConnectButton
-        className="!bg-teal-600 hover:!bg-teal-700 !text-white !px-6 !py-3 !rounded-xl !font-medium !shadow-md hover:!shadow-lg transition-all"
-        onConnectError={(error) => {
-          if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
-            setError("User rejected wallet connection");
-          } else {
-            setError("Failed to connect wallet: " + error.message);
-          }
-        }}
-      />
+  <ConnectButton
+    className="w-full sm:w-auto px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-md hover:shadow-lg transition-all"
+    onConnectError={(error) => {
+      if (error.code === ErrorCode.WALLET__CONNECT_ERROR__USER_REJECTED) {
+        setError("User rejected wallet connection");
+      } else {
+        setError("Failed to connect wallet: " + error.message);
+      }
+    }}
+  />
+</div>
+    
 
       <div className="mt-8 w-full max-w-6xl">
         <div className="bg-white/80 dark:bg-gray-700/80 backdrop-blur-lg p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-600">
