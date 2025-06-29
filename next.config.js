@@ -1,8 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
-  // opsional lainnya
-}
+  images: {
+    unoptimized: true, // ✅ Tambahkan ini
+  },
+};
 
-module.exports = nextConfig
-
+module.exports = nextConfig;

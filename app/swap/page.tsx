@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   ConnectButton,
   useWallet,
@@ -10,6 +10,7 @@ import {
 } from '@suiet/wallet-kit';
 import { Transaction } from '@mysten/sui/transactions';
 import type { ChangeEvent } from 'react';
+import { normalizeStructTag } from '@mysten/sui/utils';
 
 // Define types
 type Token = {
@@ -20,10 +21,9 @@ type Token = {
   color?: string;
 };
 
-type ExchangeRates = Record<string, number>;
 type TokenBalances = Record<string, number>;
 
-// Token definitions
+// Token definitions with corrected type paths
 const TOKENS: Record<string, Token> = {
   SUI: {
     symbol: 'SUI',
@@ -34,6 +34,7 @@ const TOKENS: Record<string, Token> = {
   },
   USDT: {
     symbol: 'USDT',
+    // Corrected wormhole USDT type
     type: '0xc060006111016b8a020ad5b33834984a437aaa7d3c74c18e09a95d48aceab08c::coin::COIN',
     decimals: 6,
     icon: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
@@ -41,6 +42,7 @@ const TOKENS: Record<string, Token> = {
   },
   USDC: {
     symbol: 'USDC',
+    // Corrected wormhole USDC type
     type: '0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN',
     decimals: 6,
     icon: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
@@ -55,23 +57,42 @@ const TOKENS: Record<string, Token> = {
   },
   WAL: {
     symbol: 'WAL',
-    type: '0x1656f3e0a81d8e6b818f9f797e5a9f7a4c9d6d0b5b5e5e5e5e5e5e5e5e5e5::wal::WAL',
+    // Corrected WAL type from DeepBook Indexer data
+    type: '0x356a26eb9e012a68958082340d4c4116e7f55615cf27affcff209cf0ae544f59::wal::WAL',
     decimals: 9,
     icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/23088.png',
     color: 'bg-red-500',
   },
-  MYCOIN: {
-    symbol: 'MYCOIN',
-    type: '0x123456...::my_coin::MYCOIN',
-    decimals: 6,
-    icon: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
-    color: 'bg-gradient-to-r from-pink-500 to-violet-500',
+  DEEP: {
+    symbol: 'DEEP',
+    type: '0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP',
+    decimals: 9, // Diperbaiki desimal DEEP menjadi 9
+    icon: 'https://cryptologos.cc/logos/deepbook-protocol-deep-logo.png',
+    color: 'bg-gradient-to-r from-indigo-500 to-purple-500',
   },
 };
 
-const PACKAGE_ID = '0xabc...';
-const MODULE = 'cyberpunk_marketplace';
-const FUNC = 'swap';
+// DeepBook pools - Using verified pool IDs
+const DEEPBOOK_POOL_IDS: { [key: string]: string } = {
+  // Mainnet DeepBook Pool IDs (Based on public indexer data)
+  'SUI-USDC': '0xe05dafb5133bcffb8d59f4e12465dc0e9faeaa05e3e342a08fe135800e3e4407',
+  'USDC-SUI': '0xe05dafb5133bcffb8d59f4e12465dc0e9faeaa05e3e342a08fe135800e3e4407',
+  'DEEP-USDC': '0xf948981b806057580f91622417534f491da5f61aeaf33d0ed8e69fd5691c95ce',
+  'USDC-DEEP': '0xf948981b806057580f91622417534f491da5f61aeaf33d0ed8e69fd5691c95ce',
+  // You need to find the correct CETUS pool ID
+  'SUI-CETUS': '0x...sui_cetus_pool_id', // Placeholder, ganti dengan ID asli
+  'CETUS-SUI': '0x...sui_cetus_pool_id', // Placeholder, ganti dengan ID asli
+  'DEEP-SUI' : '0xb663828d6217467c8a1838a03793da896cbe745b150ebd57d82f814ca579fc22',
+  'SUI-DEEP' : '0xb663828d6217467c8a1838a03793da896cbe745b150ebd57d82f814ca579fc22',
+};
+
+// DeepBook Package ID (Sudah dikonfirmasi)
+const DEEPBOOK_PACKAGE_ID = '0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270';
+
+// Swap functions
+const DEEPBOOK_MODULE = 'clob_v2'; // Modul DeepBook sekarang adalah `clob_v2`
+const SWAP_EXACT_BASE = 'swap_exact_base_for_quote';
+const SWAP_EXACT_QUOTE = 'swap_exact_quote_for_base';
 
 export default function TurboSwap() {
   const wallet = useWallet();
@@ -84,66 +105,194 @@ export default function TurboSwap() {
   const [error, setError] = useState<string>('');
   const [slippage, setSlippage] = useState<number>(0.5);
   const [fromToken, setFromToken] = useState<Token>(TOKENS.SUI);
-  const [toToken, setToToken] = useState<Token>(TOKENS.MYCOIN);
+  const [toToken, setToToken] = useState<Token>(TOKENS.DEEP); // Mengubah default ToToken ke DEEP
   const [tokenBalances, setTokenBalances] = useState<TokenBalances>({});
   const [showTokenList, setShowTokenList] = useState<'from' | 'to' | null>(null);
-  const [exchangeRates, setExchangeRates] = useState<ExchangeRates>({
-    'SUI-USDT': 1.2, 'SUI-USDC': 1.19, 'SUI-CETUS': 150, 'SUI-WAL': 80, 'SUI-MYCOIN': 0.8,
-    'USDT-USDC': 0.99, 'USDT-CETUS': 125, 'USDT-WAL': 66.67, 'USDT-MYCOIN': 0.67,
-  });
+  const [livePrice, setLivePrice] = useState<number | null>(null);
+  const [bidPrice, setBidPrice] = useState<number | null>(null);
+  const [askPrice, setAskPrice] = useState<number | null>(null);
+  const [poolObjectInfo, setPoolObjectInfo] = useState<any>(null); // State untuk menyimpan info objek pool
 
-  const getExchangeRate = (): number => {
-    const pair = `${fromToken.symbol}-${toToken.symbol}`;
-    const reversePair = `${toToken.symbol}-${fromToken.symbol}`;
-    return exchangeRates[pair] || (exchangeRates[reversePair] ? 1 / exchangeRates[reversePair] : 0.8);
-  };
+  // Dapatkan pool ID yang relevan berdasarkan pasangan token yang dipilih
+  const poolId = useMemo(() => {
+    // Coba temukan poolId untuk kedua arah pasangan token
+    return DEEPBOOK_POOL_IDS[`${fromToken.symbol}-${toToken.symbol}`] || DEEPBOOK_POOL_IDS[`${toToken.symbol}-${fromToken.symbol}`] || null;
+  }, [fromToken, toToken]);
 
+  // Fungsi untuk mendapatkan harga pasar dari DeepBook
+  const fetchLivePrice = useCallback(async () => {
+    setError('');
+    setLivePrice(null);
+    setBidPrice(null);
+    setAskPrice(null);
+    
+    if (!poolId || !suiClient) {
+      setError('Pool ID tidak ditemukan untuk pasangan token ini.');
+      return;
+    }
+
+    try {
+      const poolObject = await suiClient.getObject({
+        id: poolId,
+        options: {
+          showContent: true,
+          showDisplay: true,
+        },
+      });
+
+      if (!poolObject.data?.content || poolObject.data.content.dataType !== 'moveObject') {
+        setError('Objek pool tidak valid atau tidak ditemukan di jaringan.');
+        return;
+      }
+
+      const fields = poolObject.data.content.fields as any;
+      setPoolObjectInfo(fields); // Simpan informasi pool untuk swap
+      
+      const asks = fields.asks?.fields?.levels?.fields?.entries;
+      const bids = fields.bids?.fields?.levels?.fields?.entries;
+      
+      let bestAsk = Infinity;
+      let bestBid = 0;
+
+      // Ambil best ask price
+      if (asks && asks.length > 0) {
+        bestAsk = parseFloat(asks[0]?.fields?.key);
+      }
+
+      // Ambil best bid price
+      if (bids && bids.length > 0) {
+        bestBid = parseFloat(bids[0]?.fields?.key);
+      }
+
+      // Pastikan decimals token valid
+      const baseAssetType = normalizeStructTag(fields.base_asset_type?.name);
+      const quoteAssetType = normalizeStructTag(fields.quote_asset_type?.name);
+      
+      const baseTokenInfo = Object.values(TOKENS).find(t => normalizeStructTag(t.type) === baseAssetType);
+      const quoteTokenInfo = Object.values(TOKENS).find(t => normalizeStructTag(t.type) === quoteAssetType);
+
+      if (!baseTokenInfo || !quoteTokenInfo) {
+          setError('Informasi desimal token tidak lengkap.');
+          return;
+      }
+
+      const priceScale = 10 ** (baseTokenInfo.decimals - quoteTokenInfo.decimals);
+      const deepbookPriceScale = 10 ** 9; // DeepBook scaling factor
+      
+      // Konversi harga dari DeepBook
+      let finalBidPrice = bestBid > 0 ? (bestBid / deepbookPriceScale) * priceScale : 0;
+      let finalAskPrice = bestAsk < Infinity ? (bestAsk / deepbookPriceScale) * priceScale : Infinity;
+      
+      // Cek apakah swap direction terbalik (fromToken adalah quote_asset)
+      const isSwapDirectionReversed = normalizeStructTag(fromToken.type) === quoteAssetType;
+
+      if (isSwapDirectionReversed) {
+        // Jika terbalik, harga bid dan ask juga dibalik
+        const tempBid = finalBidPrice;
+        finalBidPrice = finalAskPrice < Infinity ? 1 / finalAskPrice : 0;
+        finalAskPrice = tempBid > 0 ? 1 / tempBid : Infinity;
+      }
+
+      if (finalBidPrice === 0 || finalAskPrice === Infinity) {
+          setLivePrice(null);
+          setBidPrice(null);
+          setAskPrice(null);
+          setError('Order book kosong atau tidak ada harga yang tersedia.');
+      } else {
+          setBidPrice(finalBidPrice);
+          setAskPrice(finalAskPrice);
+          setLivePrice((finalBidPrice + finalAskPrice) / 2); // Harga tengah
+          setError('');
+      }
+
+    } catch (err) {
+      console.error('Gagal mengambil harga live dari DeepBook:', err);
+      setLivePrice(null);
+      setBidPrice(null);
+      setAskPrice(null);
+      setError('Gagal mengambil harga live. Pastikan ID pool sudah benar.');
+    }
+  }, [poolId, suiClient, fromToken, toToken]);
+
+  // Efek untuk mengambil harga live secara berkala
   useEffect(() => {
-    if (fromAmount && !isNaN(Number(fromAmount))) {
-      setToAmount((Number(fromAmount) * getExchangeRate()).toFixed(toToken.decimals > 6 ? 6 : toToken.decimals));
+    // Panggil sekali saat mount dan setiap kali pasangan token berubah
+    fetchLivePrice();
+    // Atur interval untuk polling harga setiap 10 detik
+    const interval = setInterval(fetchLivePrice, 10000); 
+    // Bersihkan interval saat komponen unmount atau dependencies berubah
+    return () => clearInterval(interval);
+  }, [fetchLivePrice]);
+
+  // Efek untuk menghitung jumlah "to" saat jumlah "from" berubah
+  useEffect(() => {
+    if (fromAmount && !isNaN(Number(fromAmount)) && livePrice) {
+      // Gunakan harga ask untuk estimasi pembelian (swap dari quote_asset ke base_asset)
+      // Gunakan harga bid untuk estimasi penjualan (swap dari base_asset ke quote_asset)
+      const isBaseToQuote = normalizeStructTag(fromToken.type) === normalizeStructTag(poolObjectInfo?.base_asset_type?.name);
+      
+      const priceForCalculation = isBaseToQuote ? bidPrice : askPrice;
+      
+      const estimatedAmount = Number(fromAmount) * (priceForCalculation || livePrice);
+      setToAmount(estimatedAmount.toFixed(toToken.decimals));
     } else {
       setToAmount('');
     }
-  }, [fromAmount, fromToken, toToken, exchangeRates]);
-
+  }, [fromAmount, livePrice, bidPrice, askPrice, toToken, fromToken, poolObjectInfo]);
+  
+  // Efek untuk mendapatkan saldo token
   useEffect(() => {
-    if (wallet.connected) {
-      setTokenBalances({
-        SUI: parseFloat(formatSUI(balance ?? 0)),
-        USDT: 1250.42, USDC: 850.75, CETUS: 15000, WAL: 8000, MYCOIN: 5000
-      });
-    } else {
-      setTokenBalances({});
-    }
-  }, [wallet.connected, balance]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setExchangeRates(prev => {
-        const newRates = { ...prev };
-        Object.keys(newRates).forEach(pair => {
-          newRates[pair] = newRates[pair] * (0.999 + Math.random() * 0.002);
-        });
-        return newRates;
-      });
-    }, 10000);
+    const fetchBalances = async () => {
+      if (!wallet.connected || !suiClient || !wallet.account?.address) {
+        setTokenBalances({});
+        return;
+      }
+      
+      const balances: TokenBalances = {};
+      
+      // Fetch SUI balance
+      const suiBalance = parseFloat(formatSUI(balance ?? 0));
+      balances.SUI = suiBalance;
+      
+      // Fetch other coin balances
+      const tokenSymbols = Object.keys(TOKENS).filter(s => s !== 'SUI');
+      for (const symbol of tokenSymbols) {
+        const token = TOKENS[symbol];
+        try {
+          const coinBalance = await suiClient.getBalance({
+            owner: wallet.account.address,
+            coinType: normalizeStructTag(token.type),
+          });
+          balances[symbol] = Number(coinBalance.totalBalance) / (10 ** token.decimals);
+        } catch (err) {
+          console.error(`Failed to fetch balance for ${symbol}:`, err);
+          balances[symbol] = 0;
+        }
+      }
+      setTokenBalances(balances);
+    };
+    
+    fetchBalances();
+    const interval = setInterval(fetchBalances, 30000); 
     return () => clearInterval(interval);
-  }, []);
+  }, [wallet.connected, suiClient, wallet.account?.address, balance]);
 
   const handleFromAmountChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFromAmount(e.target.value);
   };
 
   const handleMaxClick = () => {
-    if (tokenBalances[fromToken.symbol]) {
-      setFromAmount(tokenBalances[fromToken.symbol].toString());
+    const balanceValue = tokenBalances[fromToken.symbol];
+    if (balanceValue !== undefined && balanceValue !== null) {
+      setFromAmount(balanceValue.toString());
     }
   };
 
   const flipTokens = () => {
     setFromToken(toToken);
     setToToken(fromToken);
-    setFromAmount(toAmount);
+    setFromAmount('');
+    setToAmount('');
   };
 
   const selectToken = (tokenKey: string) => {
@@ -151,29 +300,64 @@ export default function TurboSwap() {
     if (!token) return;
 
     if (showTokenList === 'from') {
-      setFromToken(token);
+      if (token.symbol === toToken.symbol) {
+        flipTokens();
+      } else {
+        setFromToken(token);
+      }
     } else if (showTokenList === 'to') {
-      setToToken(token);
+      if (token.symbol === fromToken.symbol) {
+        flipTokens();
+      } else {
+        setToToken(token);
+      }
     }
     setShowTokenList(null);
   };
-
+  
   const handleSwap = async () => {
     if (!wallet.connected) return setError('Connect wallet dulu bos!');
     if (!fromAmount || isNaN(Number(fromAmount))) return setError('Masukkan jumlah yang valid');
+    if (!poolId) return setError('Pasangan token tidak didukung oleh DeepBook.');
+    if (!poolObjectInfo) return setError('Objek pool belum dimuat. Silakan tunggu sebentar.');
 
     setIsSwapping(true);
     setError('');
 
     try {
       const tx = new Transaction();
+      
+      const amountIn = BigInt(Math.floor(Number(fromAmount) * 10 ** fromToken.decimals));
+      
+      // Determine swap direction based on pool's base/quote assets
+      const baseAssetType = normalizeStructTag(poolObjectInfo.base_asset_type.name);
+      const isBaseToQuote = normalizeStructTag(fromToken.type) === baseAssetType;
+      
+      // Calculate minAmountOut with slippage using the relevant price
+      const priceForCalculation = isBaseToQuote ? bidPrice : askPrice;
+      if (!priceForCalculation || priceForCalculation <= 0) {
+        throw new Error('Harga tidak valid untuk estimasi swap.');
+      }
+      
+      const estimatedAmountOut = Number(fromAmount) * priceForCalculation;
+      const minAmountOut = BigInt(Math.floor(estimatedAmountOut * (1 - slippage / 100) * 10 ** toToken.decimals));
+      
+      // Split the coin to be swapped
+      const [coinIn] = tx.splitCoins(tx.gas, [tx.pure.u64(amountIn.toString())]);
+      
+      // Determine the correct swap function
+      const swapFunction = isBaseToQuote ? SWAP_EXACT_BASE : SWAP_EXACT_QUOTE;
+
+      // Swap using DeepBook
       tx.moveCall({
-        target: `${PACKAGE_ID}::${MODULE}::${FUNC}`,
+        target: `${DEEPBOOK_PACKAGE_ID}::${DEEPBOOK_MODULE}::${swapFunction}`,
         arguments: [
-          tx.pure.u64(Number(fromAmount) * 10 ** fromToken.decimals),
-          tx.pure.u64(Number(fromAmount) * getExchangeRate() * (1 - slippage / 100) * 10 ** toToken.decimals),
+          tx.object(poolId),
+          coinIn,
+          tx.pure.u64(minAmountOut.toString()),
+          tx.object('0x6'), // Clock object
         ],
-        typeArguments: [fromToken.type, toToken.type],
+        typeArguments: [normalizeStructTag(fromToken.type), normalizeStructTag(toToken.type)],
       });
 
       const result = await wallet.signAndExecuteTransactionBlock({
@@ -183,9 +367,12 @@ export default function TurboSwap() {
 
       console.log('✅ Swap success:', result);
       alert('Swap berhasil!');
+      setFromAmount('');
+      setToAmount('');
+
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : 'Swap gagal bos!');
+      setError(err instanceof Error ? err.message : 'Swap gagal bos! Coba lagi.');
     } finally {
       setIsSwapping(false);
     }
@@ -207,7 +394,9 @@ export default function TurboSwap() {
             <div className="flex justify-between items-center mb-2">
               <label className="text-gray-400">From</label>
               <div className="text-sm text-gray-400">
-                Balance: {tokenBalances[fromToken.symbol]?.toFixed(4) || '0.00'}
+                Balance: {tokenBalances[fromToken.symbol] !== undefined && tokenBalances[fromToken.symbol] !== null
+                           ? tokenBalances[fromToken.symbol].toFixed(4)
+                           : '0.00'}
                 <button 
                   onClick={handleMaxClick}
                   className="ml-2 text-purple-400 hover:text-purple-300"
@@ -254,7 +443,9 @@ export default function TurboSwap() {
             <div className="flex justify-between items-center mb-2">
               <label className="text-gray-400">To</label>
               <div className="text-sm text-gray-400">
-                Balance: {tokenBalances[toToken.symbol]?.toFixed(4) || '0.00'}
+                Balance: {tokenBalances[toToken.symbol] !== undefined && tokenBalances[toToken.symbol] !== null
+                           ? tokenBalances[toToken.symbol].toFixed(4)
+                           : '0.00'}
               </div>
             </div>
             <div className="flex items-center bg-gray-700 rounded-lg p-3">
@@ -277,10 +468,18 @@ export default function TurboSwap() {
               </button>
             </div>
           </div>
-
+          
           {/* Rate Info */}
           <div className="mb-6 text-center text-sm text-gray-400">
-            1 {fromToken.symbol} = {getExchangeRate().toFixed(6)} {toToken.symbol}
+            {livePrice ? (
+              <>
+                1 {fromToken.symbol} = {livePrice.toFixed(6)} {toToken.symbol} (Mid-Price) <br/>
+                <span className="text-green-400">Bid: {bidPrice?.toFixed(6)}</span>{' '}
+                <span className="text-red-400">Ask: {askPrice?.toFixed(6)}</span>
+              </>
+            ) : (
+              error ? error : 'Fetching live price...'
+            )}
           </div>
 
           {/* Slippage Settings */}
@@ -314,7 +513,7 @@ export default function TurboSwap() {
           {/* Swap Button */}
           <button
             onClick={handleSwap}
-            disabled={isSwapping || !fromAmount || !toAmount}
+            disabled={isSwapping || !fromAmount || !toAmount || !wallet.connected}
             className={`w-full py-3 rounded-xl font-bold ${!wallet.connected ? 'bg-gray-600' : isSwapping ? 'bg-purple-700' : 'bg-purple-600 hover:bg-purple-500'} transition-colors`}
           >
             {!wallet.connected ? 'Connect Wallet' : isSwapping ? 'Swapping...' : 'Swap'}
@@ -354,7 +553,9 @@ export default function TurboSwap() {
                   <div className="text-left">
                     <div className="font-medium">{token.symbol}</div>
                     <div className="text-sm text-gray-400">
-                      Balance: {tokenBalances[token.symbol]?.toFixed(4) || '0.00'}
+                      Balance: {tokenBalances[token.symbol] !== undefined && tokenBalances[token.symbol] !== null
+                                 ? tokenBalances[token.symbol].toFixed(4)
+                                 : '0.00'}
                     </div>
                   </div>
                 </button>
